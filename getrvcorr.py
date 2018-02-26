@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.optimize import fsolve
-import getfe01 as getfe
+import getfe
 from scipy.integrate import quad
 
 def inmintegrand(phir,rmax,e,n,m,x,minr=1E-10):
@@ -10,18 +10,22 @@ def inmintegrand(phir,rmax,e,n,m,x,minr=1E-10):
     if (1-top/bottom)<0:
         return x**(2+m)
     else:
-        #return x**(2+m)*(1-(phir(x*rmax)-phir(minr))/(phir(rmax)-phir(minr)))**((1.0+n)/2.0)
         return x**(2+m)*(1-(top/bottom))**((1.0+n)/2.0)
+
+def phiintegrandtop(phir,rmax,e,x,minr=1E-10):
+
+    return x**2*phir(x)*np.sqrt(e-phir(r))
+
+def phiintegrandbot(phir,rmax,e,x,minr=1E-10):
+
+    return x**2*np.sqrt(e-phir(x))
+    
 def inm(phir,rmax,e,n,m,minr=1E-10):
 
     return quad(lambda x: inmintegrand(phir,rmax,e,n,m,x,minr=minr),minr,1)[0]
-#    return quad(lambda r: r**(2+m)*(e-phir(r))**((1.0+n)/2.0),0,rmax)[0]
 
 def getrvcorr(phir,e,rmax,phiprime=None,minr=1E-10):
 
-    r0=-4-np.log(e)
-    #rmax=fsolve(lambda x: np.log(abs(phir(x)))-np.log(abs(e)),np.exp(r0),full_output=False,fprime=lambda x: 1.0/phir(x)*phiprime(x),factor=1)[0]
-    #print phir(r0)
     i00=inm(phir,rmax,e,0,0,minr=minr)
     i22=inm(phir,rmax,e,2,2,minr=minr)
     i20=inm(phir,rmax,e,2,0,minr=minr)
@@ -32,3 +36,10 @@ def getrvcorr(phir,e,rmax,phiprime=None,minr=1E-10):
     v2=i20/i00
 
     return rvcorr,r2,v2
+
+def getavgphi(phir,e,rmax,phiprime=None,minr=1E-10):
+
+    top=quad(lambda x: phiintegrandtop(phir,rmax,e,x,minr=1E-10))
+    bottom=quad(lambda x: phiintegrandbottom(phir,rmax,e,x,minr=1E-10))
+
+    return top/bottom

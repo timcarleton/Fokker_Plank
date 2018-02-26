@@ -11,87 +11,11 @@ reload(getrvcorr)
 import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
 from astropy import units
+import getrsi
 kminkpc=1*units.kpc.to(units.km)
 
 GN=(G.to(units.kpc**3/units.s**2/units.M_sun)).value
 GNfront=(G.to(units.km**2*units.kpc/units.s**2/units.M_sun)).value
-
-#params=(pericenter (Mpc),omatpericenter (1/s),rho0host (msun/kpc**3),rshost (kpc),mvirhost (msun))
-
-
-def getrfrompot(potfunc,e,dsidr,minr=1E-10):
-
-#    print abs(np.log(abs(potfunc(10**-1)))-np.log(abs(2*(e))))
- #   print abs(np.log(abs(potfunc(10**-2)))-np.log(abs(2*(e))))
-  #  print abs(np.log(abs(potfunc(10**1)))-np.log(abs(2*(e))))
-    if e!=0:
-        r0=np.log(1.0/abs(e))+np.log(abs(potfunc(minr)))
-    else:
-        r0=1.0
-    if r0==None:
-        for i in np.linspace(0,10):
-            r0=1-np.log(abs(e))
-            if np.isfinite(np.log(abs(potfunc(np.exp(r0))))):
-                break
-            else:
-                None
-    #r0=potfunc(minr)/e
-    if abs(e)<.95*abs(potfunc(minr)):
-        rsi=np.exp(fsolve(lambda x: np.log(-potfunc(np.exp(x)))-np.log(abs(e)),r0,full_output=False,factor=1)[0])
-        if not np.isfinite(rsi):
-            rsi=np.exp(fsolve(lambda x: abs(potfunc(np.exp(x))-abs(e)),r0,full_output=False)[0])
-    #print si,rsi,sifunc(rsi)
-    else:
-        #r0=1.0
-        rsi=np.exp(fsolve(lambda x: potfunc(np.exp(x))-e,r0,full_output=False)[0])
-
-#    print e
-#    rsi=fsolve(lambda x: np.log(abs(potfunc(x)))-np.log(abs(e)),r0,full_output=False,fprime=lambda x: 1.0/potfunc(x)*dsidr(x))[0]
-    #rsi=10**(fsolve(lambda x: np.log(abs(potfunc(10**x)))-np.log(abs(e)),np.log10(r0),full_output=False)[0])
-
-    return rsi
-
-# def gethostmass(r,params):
-    
-#     rho=params[2]
-#     rs=params[3]
-#     x=r/rs
-#     mr=4*np.pi*rho*rs**3*(np.log(1+x)-r/(r+rs))
-#     if mr<params[4]:
-#         return mr
-#     else:
-#         return params[4]
-
-# def getr(theta,params):
-
-    
-#     a,e=getaefromperi.getaefromperi(params[0],params[1],gethostmass(params[0],params))
-
-#     return a*(1-e**2)/(1+e*np.cos(theta))
-
-
-# def getmur(theta,params):
-
-#     r=getr(theta,params)*1000 #Mpc to kpc
-
-#     mr=gethostmass(r,params)
-#     if mr<params[4]:
-#         return mr/params[4]
-#     else:
-#         return 1.0
-
-# def getmuhat(theta,params):
-    
-#     r=getr(theta,params)*1000 #Mpc to kpc
-#     mr=gethostmass(r*1000,params)
-#     if mr>params[4]:
-#         return 0
-
-#     rho=params[2]
-#     rs=params[3]
-#     x=r/rs #unitless
-#     bottom=params[4]/(4*np.pi*rho*rs**3) #unitless
-#     return x**2/(1+x)**2/bottom
 
 
 def integrand1(theta,params):
@@ -130,31 +54,31 @@ def getetideorbit(hostmu,hostmuhat,rthetafunc,rs,angmom,hostmass,thetamin=-np.pi
     b3=quad(integrand3,thetamin,thetamax,args=[(hostmu,hostmuhat,rthetafunc,rs,angmom)])[0]
 
     print 'b3',b3
-#    j=angmom
     
     first=GN*hostmass/rs**3
-#    print 'f',first,hostmass,rs,r,j2,'f'
+
     top1=(b1-b3)**2
     top2=(b2-b3)**2
     top3=b3**2
+
+    bottom=6
+    
     plt.clf()
     plt.plot(np.linspace(-np.pi,np.pi),[hostmu(rthetafunc(i))/rthetafunc(i) for i in np.linspace(-np.pi,np.pi)])
     plt.savefig(folder+'mutheta.png')
+    
 #    for i in np.linspace(-np.pi,np.pi):
 #        print i,rthetafunc(i),hostmu(rthetafunc(i)),hostmu(rthetafunc(i))/rthetafunc(i)
+
     print angmom(np.linspace(-np.pi,np.pi))
     b32=top3*np.mean(angmom(np.linspace(-np.pi,np.pi)))**2
     d32=b32*(rthetafunc(0)/rs/hostmu(rthetafunc(0)))**2
     print 'd3',np.sqrt(d32)
 
-
-
- #   bottom=6*j**2
-
     vp=angmom(0)*np.sqrt(GN*hostmass*rs)/rthetafunc(0)
     print angmom(0)**2
     print rthetafunc(0)**2*vp**2/(GN*hostmass*rs)
-    bottom=6
+    
     print 'vp',vp
     print GN,hostmu(rthetafunc(0))*hostmass,rthetafunc(0),vp
     print (GN*hostmu(rthetafunc(0))*hostmass/rthetafunc(0)**2/vp)**2/6
@@ -181,13 +105,13 @@ def getetidenoadiabat(e,rthetafunc,hostmu,hostmuhat,satpotfunc,rs,hostmass,peri,
 
     if len(np.shape(e))==0:
         if abs(e)<abs(satpotfunc(.01)):
-            rmax=getrfrompot(satpotfunc,e,satdphidr,minr=minr)
+            rmax=getrsi.getrsi(satpotfunc,e,satdphidr,minr=minr)
             vm2=(2*e-2*satpotfunc(minr))
             rvcorr,r2,v2=getrvcorr.getrvcorr(satpotfunc,e,rmax,phiprime=None,minr=minr)
             r2=r2*rmax**2
             v2=v2*vm2
         else:
-            rmax=getrfrompot(lowsatpotfunc,e,satdphidr,minr=minr)
+            rmax=getrsi.getrsi(lowsatpotfunc,e,satdphidr,minr=minr)
             vm2=(2*e-2*satpotfunc(minr))
             rvcorr,r2,v2=getrvcorr.getrvcorr(satpotfunc,e,rmax,phiprime=None,minr=minr)
             r2=r2*rmax**2
@@ -204,7 +128,7 @@ def getetidenoadiabat(e,rthetafunc,hostmu,hostmuhat,satpotfunc,rs,hostmass,peri,
 
             if abs(e[i])<abs(satpotfunc(.01)):
 
-                rmax.append(getrfrompot(satpotfunc,e[i],satdphidr,minr=minr))
+                rmax.append(getrsi.getrsi(satpotfunc,e[i],satdphidr,minr=minr))
                 vm2.append(2*e[i]-2*satpotfunc(minr))
                 rvcori,r2i,v2i=getrvcorr.getrvcorr(satpotfunc,e[i],rmax[i],phiprime=None,minr=minr)
                 rvcorr.append(rvcori)
@@ -212,7 +136,7 @@ def getetidenoadiabat(e,rthetafunc,hostmu,hostmuhat,satpotfunc,rs,hostmass,peri,
                 v2.append(v2i)
             else:
 
-                rmax.append(getrfrompot(lowsatpotfunc,e[i],satdphidr,minr=minr))
+                rmax.append(getrsi.getrsi(lowsatpotfunc,e[i],satdphidr,minr=minr))
                 vm2.append(2*e[i]-2*lowsatpotfunc(minr))
                 rvcori,r2i,v2i=getrvcorr.getrvcorr(satpotfunc,e[i],rmax[i],phiprime=None,minr=minr)
                 rvcorr.append(rvcori)
@@ -246,51 +170,22 @@ def getetidenoadiabat(e,rthetafunc,hostmu,hostmuhat,satpotfunc,rs,hostmass,peri,
         b1=quad(integrand1,-thetam,thetam,args=[(hostmu,hostmuhat,rthetafunc,rs,angmom)])[0]
         b2=quad(integrand2,-thetam,thetam,args=[(hostmu,hostmuhat,rthetafunc,rs,angmom)])[0]
         b3=quad(integrand3,-thetam,thetam,args=[(hostmu,hostmuhat,rthetafunc,rs,angmom)])[0]
-    
-#    print 'bs',b1,b2,b3,peri,rs,(hostpotfunc(peri*(1+ecc)/(1-ecc))-hostpotfunc(peri)),hostmu(peri),ecc,hostmass,hostmu(peri),rs
-    #a,ecc=getaefromperi.getaefromperi(params[0],params[1],gethostmass(params[0],params))
 
-    #this is unitless
-#    print b1,b2,b3
-    #j2=(hostpotfunc(peri*(1+ecc)/(1-ecc))-hostpotfunc(peri))*(peri)**2*(1+ecc)**2/2.0/ecc/GN/hostmass*hostmu(peri)/rs
-        j2=angmom**2
-    
-        j=np.sqrt(j2)
-#    print j
-    #first has units of kpc^2/s^2
+        #first has units of kpc^2/s^2
         first=GN*hostmass/rs**3*r2
-#    print 'f',first,hostmass,rs,r,j2,'f'
+
         top1=(b1-b3)**2
         top2=(b2-b3)**2
         top3=b3**2
-#        bottom=6*j**2
+
         bottom=6
-#    print top1,top2,top3
+
         de=first*(top1+top2+top3)/bottom
     else:
         de=orbit*r2
 
     de2=de*2.0/3*v2*(1+rvcorr)
     plt.clf()
-#    print 'f'
-#    print de/r2/(GN*9.839E12/278.6)**2*(48.6*1.278E-15)**2*48.6**2
-#    print r2/(GN*3.3E10/9)**2/(508/kminkpc)**2
-#    print de
-#    print e/np.min(e)
-    vhalo=np.sqrt(9.14703741927154e-28)
-    vperi=48.6*1.278E-15
-    rperi=48.6
-    print 'x',np.min(e)
-    w=np.argmin(abs(e/np.min(e)-.2))
-    print w
-    print r2[w]
-    w=np.argmin(abs(e/np.min(e)-.6))
-    print r2[w]
-    
-
-    w=np.where((e/np.min(e)>.2) & (e/np.min(e)<.6))[0]
-    print np.median(de[w]),np.median(de2[w])
-#    print de/(vhalo**4*r2/(vperi*rperi)**2)
 
     r=np.sqrt(r2)
     omega=np.sqrt(1.0/r*abs(satdphidr(r)))
@@ -300,90 +195,12 @@ def getetidenoadiabat(e,rthetafunc,hostmu,hostmuhat,satpotfunc,rs,hostmass,peri,
     plt.loglog()
     plt.savefig(folder+'romega.png')
     plt.clf()
+    
     return de,de2,omega
 
-def gete2tidenoadiabat(e,rthetafunc,hostmu,hostmuhat,satpotfunc,rs,hostmass,peri,satdphidr,angmom,orbit=None,minr=1E-10):
 
-
-    if len(np.shape(e))==0:
-        rvcorr,r2,v2=getrvcorr.getrvcorr(satpotfunc,e,getrfrompot(satpotfunc,e,satdphidr,minr=minr),phiprime=satdphidr,minr=minr)
-    else:
-        rvcorr=[]
-        r2=[]
-        v2=[]
-
-        for i in range(len(e)):
-            rvcori,r2i,v2i=getrvcorr.getrvcorr(satpotfunc,e[i],getrfrompot(satpotfunc,e[i],satdphidr,minr=minr),phiprime=satdphidr,minr=minr)
-            rvcorr.append(rvcori)
-            r2.append(r2i)
-            v2.append(v2i)
-
-        r2=np.array(r2)
-        v2=np.array(v2)
-        rvcorr=np.array(rvcorr)
-
-    second=2*r2*v2*(1+rvcorr)/3.0
-
-
-    if orbit==None:
-        thetam=np.pi
-
-        b1=quad(integrand1,-thetam,thetam,args=[(hostmu,hostmuhat,rthetafunc,rs,angmom)])[0]
-        b2=quad(integrand2,-thetam,thetam,args=[(hostmu,hostmuhat,rthetafunc,rs,angmom)])[0]
-        b3=quad(integrand3,-thetam,thetam,args=[(hostmu,hostmuhat,rthetafunc,rs,angmom)])[0]
-
-    
-   # a,ecc=getaefromperi.getaefromperi(params[0],params[1],gethostmass(params[0],params))
-
-#    j2=(hostpotfunc(peri*(1+ecc)/(1-ecc))-hostpotfunc(peri))*(peri)**2*(1+ecc)**2/2.0/ecc/GN/hostmass*hostmu(peri)/rs
-        j2=angmom**2
-        j=np.sqrt(j2)
-
-            
-    #first has units of kpc^2/s^2
-        first=GN*hostmass/rs**3
-    
-        top1=(b1-b3)**2
-        top2=(b2-b3)**2
-        top3=b3**2
-        bottom=6
-    #    print 'rew2',hostmass,GN,rs
-    #    print first,second,top1,top2,top3,bottom
-    
-        return first*second*(top1+top2+top3)/bottom
-    else:
-        return orbit*second
 
 def getadiabatcorr1(e,satpotfunc,tau,omega,dphidr=None,speed='fast',minr=1E-10):
-
-    # lowrs=np.logspace(np.log10(minr),1,num=1000)
-    # phi=satpotfunc(lowrs)
-    # lowsatpotfunc=interp1d(lowrs,phi,fill_value='extrapolate')
-
-    
-    # if len(np.shape(e))==0:
-    #     if abs(e)<abs(satpotfunc(.01)):
-    #         r=getrfrompot(satpotfunc,e,dphidr,minr=minr)
-    #     else:
-    #         r=getrfrompot(lowsatpotfunc,e,None,minr=minr)
-    # else:
-    #     r=[]
-    #     for i in range(len(e)):
-    #         if abs(e[i])<abs(satpotfunc(.01)):
-    #             r.append(getrfrompot(satpotfunc,e[i],dphidr,minr=minr))
-    #         else:
-    #             r.append(getrfrompot(lowsatpotfunc,e[i],None,minr=minr))
-
-    #     r=np.array(r)
-        
-    # if dphidr!=None:
-    #     omega=np.sqrt(1.0/r*abs(dphidr(r)))
-    # else:
-    #     omega=np.sqrt(1.0/r*abs(derivative(satpotfunc,r)))
-    # plt.clf()
-    # plt.plot(abs(e),omega)
-    # plt.loglog()
-    # plt.savefig('omegaeb.png')
 
     x=omega*tau
 
@@ -395,31 +212,6 @@ def getadiabatcorr1(e,satpotfunc,tau,omega,dphidr=None,speed='fast',minr=1E-10):
             
 def getadiabatcorr2(e,satpotfunc,tau,omega,dphidr=None,speed='fast',minr=1E-10):
 
-    # lowrs=np.logspace(np.log10(minr),1,num=1000)
-    # phi=satpotfunc(lowrs)
-    # lowsatpotfunc=interp1d(lowrs,phi,fill_value='extrapolate')
-    
-    # if len(np.shape(e))==0:
-    #     if abs(e)<abs(satpotfunc(.01)):
-    #         r=getrfrompot(satpotfunc,e,dphidr,minr=minr)
-    #     else:
-    #         r=getrfrompot(lowsatpotfunc,e,None,minr=minr)
-    # else:
-    #     r=[]
-    #     for i in range(len(e)):
-    #         if abs(e[i])<abs(satpotfunc(.01)):
-    #             r.append(getrfrompot(satpotfunc,e[i],dphidr,minr=minr))
-    #         else:
-    #             r.append(getrfrompot(lowsatpotfunc,e[i],None,minr=minr))
-
-    #     r=np.array(r)
-
-
-    # if dphidr!=None:
-    #     omega=np.sqrt(1.0/r*abs(dphidr(r)))
-    # else:
-    #     omega=np.sqrt(1.0/r*abs(derivative(satpotfunc,r)))
-    
     x=omega*tau
     
     if speed=='fast':
@@ -449,22 +241,9 @@ def getetide(e,rthetafunc,hostmu,hostmuhat,satpotfunc,satdphidr,rs,omatperi,host
     plt.loglog()
     plt.savefig(folder+'adiabat.png')
 
-#    print 'a3',getadiabatcorr1(e,satpotfunc,tau,satdphidr)
-    #print 'a1',getadiabatcorr1(e,satpotfunc,tau,satdphidr)
-    #print 'na',getetidenoadiabat(e,rthetafunc,hostmu,hostmuhat,hostpotfunc,satpotfunc,rs,ecc,hostmass,peri)
-    
-#    adiabat1=getadiabatcorr1(e,satpotfunc,tau,satdphidr,minr=minr)
-#    adiabat2=getadiabatcorr2(e,satpotfunc,tau,satdphidr,minr=minr)
 
     return de*adiabat1,de2*adiabat2
 
-#potential functions: give r in kpc, get phi in kpc^2/s^2
-#e also in kpc^2/s^2
-def gete2tide(e,rthetafunc,hostmu,hostmuhat,satpotfunc,satdphidr,rs,omatperi,hostmass,peri,angmom,orbit=None,minr=1E-10,taufactor=1.0):
-
-    tau=2/omatperi/taufactor
-    #print gete2tidenoadiabat(e,rthetafunc,hostmu,hostmuhat,hostpotfunc,satpotfunc,rs,ecc,hostmass,peri,satdphidr)
-    return gete2tidenoadiabat(e,rthetafunc,hostmu,hostmuhat,satpotfunc,rs,hostmass,peri,satdphidr,angmom,orbit=orbit,minr=minr)*getadiabatcorr2(e,satpotfunc,tau,satdphidr,minr=minr)#/(GN*hostmass/rs)**2
 
 def phihernquist(r,m,a):
     return -GN*m/(r+a)
